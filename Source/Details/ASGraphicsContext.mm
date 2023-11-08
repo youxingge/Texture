@@ -124,14 +124,30 @@ UIImage *ASGraphicsCreateImage(ASPrimitiveTraitCollection traitCollection, CGSiz
     }
   }
 
-  // Bad OS or experiment flag. Use UIGraphics* API.
-  UIGraphicsBeginImageContextWithOptions(size, opaque, scale);
-  ASPerformBlockWithTraitCollection(work, traitCollection)
-  UIImage *image = nil;
-  if (isCancelled == nil || !isCancelled()) {
-    image = UIGraphicsGetImageFromCurrentImageContext();
-  }
-  UIGraphicsEndImageContext();
+//  // Bad OS or experiment flag. Use UIGraphics* API.
+//  UIGraphicsBeginImageContextWithOptions(size, opaque, scale);
+//  ASPerformBlockWithTraitCollection(work, traitCollection)
+//  UIImage *image = nil;
+//  if (isCancelled == nil || !isCancelled()) {
+//    image = UIGraphicsGetImageFromCurrentImageContext();
+//  }
+//  UIGraphicsEndImageContext();
+    __block UIImage *image = nil;
+    NSError *error;
+    UIGraphicsImageRendererFormat *rendererFormat = [[UIGraphicsImageRendererFormat alloc] init];
+    rendererFormat.scale = scale;
+    rendererFormat.opaque = opaque;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size format:rendererFormat];
+    [renderer runDrawingActions:^(__kindof UIGraphicsRendererContext * _Nonnull rendererContext) {
+        ASPerformBlockWithTraitCollection(work, traitCollection);
+    } completionActions:^(__kindof UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        if (isCancelled == nil || !isCancelled()) {
+          image = rendererContext.currentImage;
+        }
+    } error:&error];
+    if (error) {
+      NSCAssert(NO, @"Error drawing: %@", error);
+    }
   return image;
 }
 
